@@ -1,0 +1,5 @@
+interface_name: ethernet-1/1
+tunnel_name: vxlan0
+vlan_id: 50
+vni_id: 10050
+vrf_name: mac-vrf50

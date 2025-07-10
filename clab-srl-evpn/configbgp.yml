@@ -1,0 +1,41 @@
+- name: Configure mac-vrf20 sesuai output SRL
+  hosts: clab-srl-evpn-leaf2
+  gather_facts: false
+  tasks:
+    - name: Set mac-vrf20
+      nokia.srlinux.config:
+        update:
+          - path: /network-instance[name=mac-vrf20]
+            value:
+              name: mac-vrf20
+              type: srl_nokia-network-instance:mac-vrf
+              interface:
+                - name: ethernet-1/1.20
+              vxlan-interface:
+                - name: vxlan0.20
+              protocols:
+                bgp-evpn:
+                  bgp-instance:
+                    - id: 1
+                      admin-state: enable
+                      evi: 20
+                      vxlan-interface: vxlan0.20
+                bgp-vpn:
+                  bgp-instance:
+                    - id: 1
+                      route-distinguisher:
+                        rd: 2.2.2.1:20
+                      route-target:
+                        export-rt: target:65000:10020
+                        import-rt: target:65000:10020
+
+    - name: Verifikasi konfigurasi mac-vrf20
+      nokia.srlinux.get:
+        paths:
+          - path: /network-instance[name=mac-vrf20]
+            datastore: running
+      register: vrf_check
+
+    - name: Show verification
+      debug:
+        var: vrf_check.result

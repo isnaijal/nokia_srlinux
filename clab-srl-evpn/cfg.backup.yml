@@ -1,0 +1,14 @@
+- name: Configuration backup
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Backup running configuration
+      nokia.srlinux.get:
+        paths:
+          - path: /
+            datastore: running
+      register: get_result
+    - name: Save fetched configs
+      ansible.builtin.copy:
+        content: "{{get_result.result[0] | to_nice_json}}"
+        dest: "{{playbook_dir}}/{{inventory_hostname}}.cfg.json"

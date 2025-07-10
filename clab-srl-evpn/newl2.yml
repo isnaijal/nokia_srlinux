@@ -1,0 +1,98 @@
+- name: Replace operation
+  hosts: leaf
+  gather_facts: false
+  tasks:
+    - name: addsubinterface
+      nokia.srlinux.config:
+        update:
+          - path: /interface[name=ethernet-1/1]
+            value:
+              name: ethernet-1/1
+              admin-state: enable
+              srl_nokia-interfaces-vlans:vlan-tagging: true
+              subinterface:
+                - index: 10
+                  admin-state: enable
+                  type: srl_nokia-interfaces:bridged
+                  srl_nokia-interfaces-vlans:vlan:
+                    encap:
+                      single-tagged:
+                        vlan-id: 10
+                - index: 20
+                  admin-state: enable
+                  type: srl_nokia-interfaces:bridged
+                  srl_nokia-interfaces-vlans:vlan:
+                    encap:
+                      single-tagged:
+                        vlan-id: 20
+      register: set_result
+
+    - name: Verify configuration set
+      nokia.srlinux.get:
+        paths:
+          - path: /interface[name=ethernet-1/1]
+            datastore: running
+      register: get_result
+
+    - ansible.builtin.debug:
+        var: get_result.result
+
+    - name: Set VXLAN tunnel-interface
+      nokia.srlinux.config:
+        update:
+          - path: /tunnel-interface[name=vxlan0]
+            value:
+              name: vxlan0
+              vxlan-interface:
+                - index: 20
+                  ingress:
+                    vni: 10020
+                  type: srl_nokia-interfaces:bridged
+
+    - name: Verify VXLAN config
+      nokia.srlinux.cli:
+        commands:
+          - show network-instance vxlan-interface vxlan0.20
+      register: vxlan_result
+
+    - name: Show VXLAN config
+      ansible.builtin.debug:
+        var: vxlan_result.result
+
+    - name: Set mac-vrf20
+      nokia.srlinux.config:
+        update:
+          - path: /network-instance[name=mac-vrf20]
+            value:
+              name: mac-vrf20
+              type: srl_nokia-network-instance:mac-vrf
+              interface:
+                - name: ethernet-1/1.20
+              vxlan-interface:
+                - name: vxlan0.20
+              protocols:
+                bgp-evpn:
+                  bgp-instance:
+                    - id: 1
+                      admin-state: enable
+                      evi: 20
+                      vxlan-interface: vxlan0.20
+                bgp-vpn:
+                  bgp-instance:
+                    - id: 1
+                      route-distinguisher:
+                        rd: 2.2.2.1:20
+                      route-target:
+                        export-rt: target:65000:10020
+                        import-rt: target:65000:10020
+
+    - name: Verifikasi konfigurasi mac-vrf20
+      nokia.srlinux.get:
+        paths:
+          - path: /network-instance[name=mac-vrf20]
+            datastore: running
+      register: vrf_check
+
+    - name: Show verification
+      debug:
+        var: vrf_check.result

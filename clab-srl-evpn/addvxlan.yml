@@ -1,0 +1,26 @@
+- name: Configure VXLAN interface
+  hosts: clab-srl-evpn-leaf2
+  gather_facts: false
+  tasks:
+    - name: Set VXLAN tunnel-interface
+      nokia.srlinux.config:
+        update:
+          - path: /tunnel-interface[name=vxlan0]
+            value:
+              name: vxlan0
+              vxlan-interface:
+                - index: 20
+                  ingress:
+                    vni: 10020
+                  type: srl_nokia-interfaces:bridged
+
+    - name: Verify VXLAN config
+      nokia.srlinux.get:
+        paths:
+          - path: /tunnel-interface[name=vxlan0]
+            datastore: running
+      register: vxlan_result
+
+    - name: Show VXLAN config
+      ansible.builtin.debug:
+        var: vxlan_result.result

@@ -1,0 +1,33 @@
+all:
+  vars:
+    ansible_httpapi_use_proxy: false
+
+  children:
+    linux:
+      hosts:
+        clab-srl-evpn-srv1:
+          ansible_host: 172.20.20.7
+        clab-srl-evpn-srv2:
+          ansible_host: 172.20.20.6
+
+    nokia_srlinux:
+      vars:
+        ansible_network_os: nokia.srlinux.srlinux
+        ansible_connection: ansible.netcommon.httpapi
+        ansible_user: admin
+        ansible_password: NokiaSrl1!
+
+      children:
+        leaf:
+          hosts:
+            clab-srl-evpn-leaf1:
+              ansible_host: 172.20.20.2
+            clab-srl-evpn-leaf2:
+              ansible_host: 172.20.20.4
+
+        spine:
+          hosts:
+            clab-srl-evpn-spine1:
+              ansible_host: 172.20.20.5
+            clab-srl-evpn-spine2:
+              ansible_host: 172.20.20.3

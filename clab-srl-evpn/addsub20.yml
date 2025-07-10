@@ -1,0 +1,38 @@
+- name: Replace operation
+  hosts: clab-srl-evpn-leaf2
+  gather_facts: false
+  tasks:
+      - name: addsubinterface
+        nokia.srlinux.config:
+          update:
+            - path: /interface[name=ethernet-1/1]
+              value:
+                name: ethernet-1/1
+                admin-state: enable
+                srl_nokia-interfaces-vlans:vlan-tagging: true
+                subinterface:
+                  - index: 10
+                    admin-state: enable
+                    type: srl_nokia-interfaces:bridged
+                    srl_nokia-interfaces-vlans:vlan:
+                      encap:
+                        single-tagged:
+                          vlan-id: 10
+                  - index: 20
+                    admin-state: enable
+                    type: srl_nokia-interfaces:bridged
+                    srl_nokia-interfaces-vlans:vlan:
+                      encap:
+                        single-tagged:
+                          vlan-id: 20
+        register: set_result
+
+      - name: Verify configuration set
+        nokia.srlinux.get:
+          paths:
+            - path: /interface[name=ethernet-1/1]
+              datastore: running
+        register: get_result
+
+      - ansible.builtin.debug:
+          var: get_result.result

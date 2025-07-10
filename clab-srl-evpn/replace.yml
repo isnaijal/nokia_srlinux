@@ -1,0 +1,22 @@
+- name: Replace operation
+  hosts: clab-srl-evpn-leaf1
+  gather_facts: false
+  tasks:
+    - name: Replace partial config
+      nokia.srlinux.config:
+        update:
+          - path: /interface[name=ethernet-1/1]
+            value:
+              name: ethernet-1/1
+              admin-state: disable
+      register: set_result
+
+    - name: Verify configuration set
+      nokia.srlinux.get:
+        paths:
+          - path: /interface[name=ethernet-1/1]
+            datastore: running
+      register: get_result
+
+    - ansible.builtin.debug:
+        var: get_result.result
