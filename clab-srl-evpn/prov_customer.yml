@@ -1,0 +1,81 @@
+- name: Provisioning New Customer L2
+  hosts: leaf
+  gather_facts: false
+  vars_files:
+    - vars/customer.yml
+  vars:
+    subint_name: "{{ interface_name }}.{{ vlan_id }}"
+    tunnel_subint: "{{ tunnel_name }}.{{ vlan_id }}"
+
+  tasks:
+    - name: Add subinterface for VLAN {{ vlan_id }}
+      nokia.srlinux.config:
+        update:
+          - path: /interface[name={{ interface_name }}]
+            value:
+              name: "{{ interface_name }}"
+              admin-state: enable
+              srl_nokia-interfaces-vlans:vlan-tagging: true
+              subinterface:
+                - index: "{{ vlan_id }}"
+                  admin-state: enable
+                  type: srl_nokia-interfaces:bridged
+                  srl_nokia-interfaces-vlans:vlan:
+                    encap:
+                      single-tagged:
+                        vlan-id: "{{ vlan_id }}"
+      register: subint_result
+
+    - name: Show subinterface config
+      ansible.builtin.debug:
+        var: subint_result
+
+    - name: Configure VXLAN tunnel interface for VNI {{ vni_id }}
+      nokia.srlinux.config:
+        update:
+          - path: /tunnel-interface[name={{ tunnel_name }}]
+            value:
+              name: "{{ tunnel_name }}"
+              vxlan-interface:
+                - index: "{{ vlan_id }}"
+                  ingress:
+                    vni: "{{ vni_id }}"
+                  type: srl_nokia-interfaces:bridged
+
+    - name: Set MAC VRF {{ vrf_name }}
+      nokia.srlinux.config:
+        update:
+          - path: /network-instance[name={{ vrf_name }}]
+            value:
+              name: "{{ vrf_name }}"
+              type: srl_nokia-network-instance:mac-vrf
+              interface:
+                - name: "{{ subint_name }}"
+              vxlan-interface:
+                - name: "{{ tunnel_subint }}"
+              protocols:
+                bgp-evpn:
+                  bgp-instance:
+                    - id: 1
+                      admin-state: enable
+                      evi: "{{ vlan_id }}"
+                      vxlan-interface: "{{ tunnel_subint }}"
+                bgp-vpn:
+                  bgp-instance:
+                    - id: 1
+                      route-distinguisher:
+                        rd: "{{ rd_ip }}:{{ vlan_id }}"
+                      route-target:
+                        export-rt: "target:{{ bgp_asn }}:{{ vni_id }}"
+                        import-rt: "target:{{ bgp_asn }}:{{ vni_id }}"
+
+    - name: Show MAC VRF config
+      nokia.srlinux.get:
+        paths:
+          - path: /network-instance[name={{ vrf_name }}]
+            datastore: running
+      register: vrf_result
+
+    - name: Display VRF config
+      ansible.builtin.debug:
+        var: vrf_result.result
